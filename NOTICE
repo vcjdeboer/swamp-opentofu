@@ -1,10 +1,12 @@
 @vcjdeboer/opentofu
-Copyright (C) 2026 Vincent de Boer. Licensed AGPL-3.0-or-later (LICENSE).
+Copyright (c) 2026 Vincent de Boer. Licensed under the MIT License (LICENSE),
+except for the adapted code below.
 
 This extension contains code adapted from @webframp/terraform
 (https://github.com/webframp/swamp-extensions, directory terraform/),
-licensed under the Apache License, Version 2.0
-(http://www.apache.org/licenses/LICENSE-2.0):
+licensed under the Apache License, Version 2.0 (LICENSE-APACHE.txt,
+http://www.apache.org/licenses/LICENSE-2.0). The adapted code remains under
+the Apache License, Version 2.0:
 
   - flattenResources (recursive flattening of a state's nested modules), in
     extensions/models/opentofu/opentofu.ts, reduced to managed resource

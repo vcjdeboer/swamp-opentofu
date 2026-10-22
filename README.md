@@ -181,5 +181,5 @@ TOFU_BIN=$(which tofu) deno test --no-config --allow-read --allow-write --allow-
 
 ## Licence
 
-AGPL-3.0-or-later (LICENSE). Two functions are adapted from
-`@webframp/terraform` (Apache-2.0); see NOTICE.
+MIT (LICENSE). Two functions are adapted from `@webframp/terraform` and stay
+under the Apache License 2.0 (LICENSE-APACHE.txt); see NOTICE.

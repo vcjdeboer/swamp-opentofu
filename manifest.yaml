@@ -11,14 +11,15 @@ description: |
   the file itself holds no delete, replace or forget the definition does not
   permit. Pinned tofu
   and provider versions (optionally an h1-checked filesystem mirror), fixed
-  argv, a closed environment, and no state, plan contents or provider error
-  bodies in any record or log.
+  argv, a closed environment, and no state, plan contents or credential
+  values in any record or log.
 repository: "https://github.com/vcjdeboer/swamp-opentofu"
 models:
   - opentofu/opentofu.ts
 additionalFiles:
   - README.md
   - LICENSE
+  - LICENSE-APACHE.txt
   - NOTICE
 platforms:
   - darwin-aarch64
