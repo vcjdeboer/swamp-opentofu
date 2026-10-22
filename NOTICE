@@ -1,0 +1,19 @@
+@vcjdeboer/opentofu
+Copyright (C) 2026 Vincent de Boer. Licensed AGPL-3.0-or-later (LICENSE).
+
+This extension contains code adapted from @webframp/terraform
+(https://github.com/webframp/swamp-extensions, directory terraform/),
+licensed under the Apache License, Version 2.0
+(http://www.apache.org/licenses/LICENSE-2.0):
+
+  - flattenResources (recursive flattening of a state's nested modules), in
+    extensions/models/opentofu/opentofu.ts, reduced to managed resource
+    addresses;
+  - the output redaction of get_outputs, in opentofu.ts outputGuard, changed
+    to refuse a sensitive output instead of masking it.
+
+Source: @webframp/terraform version 2026.10.14.1, commit
+2bdf76d080b52c2d5786f2be476eae81a183c36e (2026-10-14), file
+terraform/extensions/models/terraform/terraform.ts, sha256
+f9d545fa8e92d7858ac3445e29933b58a399427947ed269060529b9d8134aa14.
+The adapted code was modified; the original copyright belongs to its authors.

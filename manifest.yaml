@@ -1,0 +1,33 @@
+manifestVersion: 1
+name: "@vcjdeboer/opentofu"
+version: "2026.10.22.1"
+description: |
+  Plan and apply OpenTofu through a sha-bound gate.
+
+  A plan is saved outside the repository and recorded only as its sha256,
+  counts and an address-and-action summary. apply runs a private copy of
+  exactly that plan file, and only when the sha256 passed back after review
+  matches it, HEAD and the configuration are unchanged, the plan is fresh, and
+  the file itself holds no delete, replace or forget the definition does not
+  permit. Pinned tofu
+  and provider versions (optionally an h1-checked filesystem mirror), fixed
+  argv, a closed environment, and no state, plan contents or provider error
+  bodies in any record or log.
+repository: "https://github.com/vcjdeboer/swamp-opentofu"
+models:
+  - opentofu/opentofu.ts
+additionalFiles:
+  - README.md
+  - LICENSE
+  - NOTICE
+platforms:
+  - darwin-aarch64
+  - darwin-x86_64
+  - linux-x86_64
+  - linux-aarch64
+labels:
+  - opentofu
+  - terraform
+  - iac
+  - infrastructure
+  - plan-apply
