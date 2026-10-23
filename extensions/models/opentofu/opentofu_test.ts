@@ -36,6 +36,7 @@ import {
   type PlanRecordT,
   sameGlobals,
   shellQuote,
+  stalePlanFiles,
   stateAddresses,
   summarize,
   type TofuCtx,
@@ -232,6 +233,50 @@ Deno.test("applyGuard: applies a matching plan; refuses every mismatch", () => {
   assertEquals(
     guard({ now: new Date("2026-10-20T00:00:01Z"), maxAgeMs: 5 * 3600_000 }),
     null,
+  );
+  // plan removes stale files: a missing file past its age is stale
+  assertEquals(
+    guard({ fileSha: null, now: new Date("2026-10-20T00:00:01Z") }),
+    "stale",
+  );
+});
+
+Deno.test("stalePlanFiles: only plan files apply would refuse as stale; the PlanId's lost second is allowed for", () => {
+  const max = 4 * 3600_000;
+  const names = [
+    "p20261019T200000-0123abcd.tfplan", // 4 h 0 m 1.5 s old: stale
+    "p20261019T200001-0123abcd.tfplan", // 4 h 0 m 0.5 s, but its record may be younger
+    "p20261019T230000-0123abcd.tfplan", // 1 h old
+    "p20261020T010000-0123abcd.tfplan", // dated after now
+    "p20261019T200000-0123abcd", // no .tfplan
+    "p20261019T200000-0123abcd.tfplan.tmp",
+    "notes.txt",
+  ];
+  const now = new Date("2026-10-20T00:00:01.500Z");
+  assertEquals(stalePlanFiles(names, now, max), [
+    "p20261019T200000-0123abcd.tfplan",
+  ]);
+  // why the second is kept: its record can still be applied
+  assertEquals(
+    guard({
+      rec: plan({ createdAt: "2026-10-19T20:00:01.999Z" }),
+      now,
+      maxAgeMs: max,
+    }),
+    null,
+  );
+  // at exactly max + 1 s every createdAt within the id's second is stale
+  assertEquals(
+    stalePlanFiles([names[1]], new Date("2026-10-20T00:00:02Z"), max),
+    [names[1]],
+  );
+  assertEquals(
+    guard({
+      rec: plan({ createdAt: "2026-10-19T20:00:01.999Z" }),
+      now: new Date("2026-10-20T00:00:02Z"),
+      maxAgeMs: max,
+    }),
+    "stale",
   );
 });
 
@@ -999,6 +1044,39 @@ Deno.test({
       assertEquals(rec.exitKind, "error");
       assertEquals(rec.planSha256, null);
     });
+  },
+});
+
+Deno.test({
+  ...T,
+  name:
+    "plan: first removes saved plan files past planMaxAgeMinutes; fresh plans and other files stay",
+  fn: async () => {
+    const f = await fixture();
+    await f.fake("plan.exit", "0");
+    await f.fake(
+      "show.json",
+      showJson([{ address: "aws_s3_bucket.logs", actions: ["no-op"] }]),
+    );
+    const base = `${f.home}/.swamp-opentofu`;
+    for (const d of [base, `${base}/${DEF_ID}`, f.plans]) await privateDir(d);
+    const old = `${
+      newPlanId(new Date(Date.now() - 241 * 60_000), "0123abcd")
+    }.tfplan`;
+    const fresh = `${
+      newPlanId(new Date(Date.now() - 60_000), "4567cdef")
+    }.tfplan`;
+    for (const n of [old, fresh, "keep.txt"]) {
+      await Deno.writeTextFile(`${f.plans}/${n}`, "x", { mode: 0o600 });
+    }
+    await withEnv(f.home, async () => {
+      await methods.plan.execute({}, f.ctx());
+    });
+    assertEquals(
+      [...Deno.readDirSync(f.plans)].map((e) => e.name).sort(),
+      [fresh, "keep.txt"].sort(),
+    );
+    assert(f.logs.join("\n").includes("removed {n} stale"));
   },
 });
 

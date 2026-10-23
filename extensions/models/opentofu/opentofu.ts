@@ -651,13 +651,15 @@ export function applyGuard(i: {
   if (r === null) return "no-plan";
   if (r.exitKind !== "changes" || r.planSha256 === null) return "not-changes";
   if (i.typedSha !== r.planSha256) return "sha-mismatch";
-  if (i.fileSha === null) return "file-missing";
+  const age = i.now.getTime() - Date.parse(r.createdAt);
+  const stale = !(age >= 0 && age <= i.maxAgeMs);
+  // plan removes stale plan files, so a missing one past its age is stale
+  if (i.fileSha === null) return stale ? "stale" : "file-missing";
   if (i.fileSha !== r.planSha256) return "file-changed";
   if (i.head !== r.commit) return "commit-changed";
   if (!i.clean) return "config-dirty";
   if (i.digest !== r.configDigest) return "config-changed";
-  const age = i.now.getTime() - Date.parse(r.createdAt);
-  if (!(age >= 0 && age <= i.maxAgeMs)) return "stale";
+  if (stale) return "stale";
   if (DESTRUCTIVE.some((k) => r.counts[k] > 0 && !i.permit.includes(k))) {
     return "destructive";
   }
@@ -1249,6 +1251,27 @@ export function newPlanId(d: Date, hex: string): string {
   }${s.slice(14, 16)}${s.slice(17, 19)}-${hex}`;
 }
 
+/**
+ * The saved plan files (`<planId>.tfplan`) among names that apply would
+ * refuse as stale at now: at least maxAgeMs plus the second a PlanId
+ * truncates from the record's createdAt old. Other names, and plans dated
+ * after now, are kept.
+ */
+export function stalePlanFiles(
+  names: readonly string[],
+  now: Date,
+  maxAgeMs: number,
+): string[] {
+  return names.filter((n) => {
+    const m =
+      /^p(\d{4})(\d{2})(\d{2})T(\d{2})(\d{2})(\d{2})-[0-9a-f]{8}\.tfplan$/
+        .exec(n);
+    if (!m) return false;
+    const t = Date.UTC(+m[1], +m[2] - 1, +m[3], +m[4], +m[5], +m[6]);
+    return now.getTime() - t >= maxAgeMs + 1000;
+  });
+}
+
 /** The command a person runs to read a saved plan before typing its sha256. */
 export function showCommand(
   g: GlobalArgs,
@@ -1440,6 +1463,18 @@ export async function planMethod(ctx: TofuCtx, raw: unknown) {
   const v = await checkVersion(ctx, g, dataDir(r), true);
   if (v.problems.length) throw new Error(`refused: ${v.problems.join("; ")}`);
   await io.privateDir(planDir(r));
+  // a stale plan can never be applied, and its file holds values: remove it
+  const stale = stalePlanFiles(
+    await io.listFiles(planDir(r)),
+    io.now(),
+    g.planMaxAgeMinutes * 60_000,
+  );
+  for (const n of stale) await io.removeQuiet(`${planDir(r)}/${n}`);
+  if (stale.length) {
+    ctx.logger?.info("plan: removed {n} stale saved plan file(s)", {
+      n: stale.length,
+    });
+  }
   const createdAt = io.now();
   const planId = newPlanId(createdAt, io.randomHex(4));
   const file = planFile(r, planId);
@@ -1711,7 +1746,7 @@ const spec = (description: string, schema: z.ZodType) => ({
 /** The @vcjdeboer/opentofu model type. */
 export const model = {
   type: "@vcjdeboer/opentofu",
-  version: "2026.10.22.1",
+  version: "2026.10.23.1",
   globalArguments: GlobalArgsSchema,
   resources: {
     version: spec(
@@ -1760,7 +1795,7 @@ export const model = {
     },
     plan: {
       description:
-        "A saved plan in ~/.swamp-opentofu/<definition>/plans (0600): exit kind, sha256, counts and an address-and-action summary recorded; logs the tofu show command to read it",
+        "A saved plan in ~/.swamp-opentofu/<definition>/plans (0600): exit kind, sha256, counts and an address-and-action summary recorded; logs the tofu show command to read it; first removes saved plan files older than planMaxAgeMinutes",
       arguments: NoArgs,
       execute: (a: unknown, ctx: TofuCtx) => planMethod(ctx, a),
     },

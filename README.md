@@ -104,7 +104,7 @@ data.latest("infra", "tofu-output").attributes.outputs.bucket_arn
 | `rules`             | `[]`        | configuration rules, see below |
 | `permitActions`     | `[]`        | any of `delete`, `replace`, `forget` an apply may take |
 | `allowMixedImport`  | `false`     | whether a plan that imports may also create or update |
-| `planMaxAgeMinutes` | `240`       | a saved plan older than this is refused |
+| `planMaxAgeMinutes` | `240`       | a saved plan older than this is refused, and its file removed by the next `plan` |
 | `timeouts`          | `{}`        | seconds per run: `plan` (900), `apply` (1800), `other` (300) |
 
 ### Rules
@@ -152,7 +152,12 @@ a sandbox for one you don't.
   remote backend.
 - **Private files.** Plans and tofu's data directory live in
   `~/.swamp-opentofu/<definition id>/` (0700, plan files 0600). An existing
-  directory with group or other bits is refused, never changed.
+  directory with group or other bits is refused, never changed. A plan file
+  holds values, so none outlives its use: no-changes and error plans are
+  removed at once, an applied one after its apply, and each `plan` first
+  removes the saved plan files older than `planMaxAgeMinutes` (judged from
+  the planId, which apply would refuse as `stale` anyway). Plans you abandon
+  stay until the next `plan` of that definition.
 - **Closed inputs.** The only method inputs are apply's `planId`
   (`^p\d{8}T\d{6}-[0-9a-f]{8}$`) and `planSha256` (64 hex). A global
   argument passed as an input must equal the definition's value.
