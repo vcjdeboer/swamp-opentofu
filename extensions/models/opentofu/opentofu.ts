@@ -1748,6 +1748,14 @@ export const model = {
   type: "@vcjdeboer/opentofu",
   version: "2026.10.23.1",
   globalArguments: GlobalArgsSchema,
+  upgrades: [
+    {
+      toVersion: "2026.10.23.1",
+      description:
+        "plan removes stale saved plan files; global arguments unchanged",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+  ],
   resources: {
     version: spec(
       "tofu-version/1: the tofu version and provider selections, checked against the pins",
