@@ -1354,6 +1354,10 @@ export async function versionMethod(ctx: TofuCtx, raw: unknown) {
   });
   const handle = await ctx.writeResource("version", "tofu-version", rec);
   if (v.problems.length) throw new Error(`refused: ${v.problems.join("; ")}`);
+  ctx.logger?.info("version: tofu {tofu}, {n} provider(s) as pinned", {
+    tofu: v.tofu,
+    n: Object.keys(v.providers).length,
+  });
   return { dataHandles: [handle] };
 }
 
@@ -1408,6 +1412,10 @@ export async function validateMethod(ctx: TofuCtx, raw: unknown) {
       } tofu error(s)`,
     );
   }
+  ctx.logger?.info("validate: valid, {w} warning(s){dirty}", {
+    w: res.diagnostics.filter((d) => d.severity === "warning").length,
+    dirty: rs.clean ? "" : "; uncommitted changes: init and plan will refuse",
+  });
   return { dataHandles: [handle] };
 }
 
@@ -1451,6 +1459,9 @@ export async function initMethod(ctx: TofuCtx, raw: unknown) {
       }; a state lock left behind needs tofu force-unlock`,
     );
   }
+  ctx.logger?.info("init: done at commit {commit}", {
+    commit: rs.head.slice(0, 12),
+  });
   return { dataHandles: [handle] };
 }
 
@@ -1691,6 +1702,10 @@ export async function applyMethod(ctx: TofuCtx, raw: unknown) {
         }; see the record's diagnostics, then plan again`,
       );
     }
+    ctx.logger?.info("apply {planId}: applied {counts}", {
+      planId: a.planId,
+      counts: JSON.stringify(counts),
+    });
     return { dataHandles: [handle] };
   } finally {
     await io.removeQuiet(tmp, true);
@@ -1734,7 +1749,22 @@ export async function outputMethod(ctx: TofuCtx, raw: unknown) {
     expectedMissing: g.expectedAddresses.filter((d) => !addrs.includes(d)),
     at: iso(),
   });
-  return { dataHandles: [await ctx.writeResource("output", OUTPUT_DATA, rec)] };
+  const handle = await ctx.writeResource("output", OUTPUT_DATA, rec);
+  // names and counts only: output values never reach a log
+  const p = {
+    n: Object.keys(rec.outputs).length,
+    a: addrs.length,
+    missing: rec.expectedMissing.join(", "),
+  };
+  if (rec.expectedMissing.length) {
+    ctx.logger?.warn(
+      "output: {n} output(s), {a} managed address(es); expected but missing: {missing}",
+      p,
+    );
+  } else {
+    ctx.logger?.info("output: {n} output(s), {a} managed address(es)", p);
+  }
+  return { dataHandles: [handle] };
 }
 
 const spec = (description: string, schema: z.ZodType) => ({
@@ -1746,13 +1776,19 @@ const spec = (description: string, schema: z.ZodType) => ({
 /** The @vcjdeboer/opentofu model type. */
 export const model = {
   type: "@vcjdeboer/opentofu",
-  version: "2026.10.23.1",
+  version: "2026.10.23.2",
   globalArguments: GlobalArgsSchema,
   upgrades: [
     {
       toVersion: "2026.10.23.1",
       description:
         "plan removes stale saved plan files; global arguments unchanged",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.10.23.2",
+      description:
+        "every method logs a completion line; global arguments unchanged",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
   ],
