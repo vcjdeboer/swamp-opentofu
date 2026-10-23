@@ -1131,6 +1131,7 @@ Deno.test({
         planId: id,
         planSha256: rec.planSha256 as string,
       }, f.ctx());
+      assert(f.logs.join("\n").includes(`apply {planId}: applied`));
       const file = `${f.plans}/${id}.tfplan`;
       // tofu applied a private copy of the file, not the file by its path
       const applied = (await Deno.readTextFile(`${f.root}/tofu/fake/applied`))
@@ -1413,6 +1414,10 @@ Deno.test({
       assertEquals(rec.unlisted, 1);
       assertEquals(rec.expectedMissing, []);
       assert(!JSON.stringify(rec).includes(CANARY));
+      // the log names counts only: no output value, recorded or not
+      const log = f.logs.join("\n");
+      assert(log.includes('"n":1,"a":1'), log);
+      assert(!log.includes(CANARY) && !log.includes("example-logs"), log);
       f.store.clear();
       await f.fake(
         "output.json",

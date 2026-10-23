@@ -1,6 +1,6 @@
 manifestVersion: 1
 name: "@vcjdeboer/opentofu"
-version: "2026.10.23.1"
+version: "2026.10.23.2"
 description: |
   Plan and apply OpenTofu through a sha-bound gate.
 
